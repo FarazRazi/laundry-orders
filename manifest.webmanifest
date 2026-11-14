@@ -1,0 +1,22 @@
+{
+  "id": "./",
+  "name": "Laundry Orders",
+  "short_name": "Laundry",
+  "description": "Order book for a laundry and ironing shop: find any order by receipt number, name or phone.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f6f8",
+  "theme_color": "#4f6bed",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New order", "short_name": "New order", "url": "./?new=1", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}

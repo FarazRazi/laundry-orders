@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">
-<meta name="theme-color" content="#4f6bed">
+<meta name="theme-color" content="#4f6bed" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Order book for a laundry and ironing shop.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Laundry">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Laundry Orders</title>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--line:#eceef2;--ink:#1c1f26;--mut:#8b919e;--acc:#4f6bed;--accbg:#eef1fd;--ok:#2f9e66;--okbg:#e8f6ee;--warn:#c9821b;--bad:#d65252;--badbg:#fcecec;--shadow:0 1px 2px rgba(20,25,40,.04),0 4px 14px rgba(20,25,40,.05)}
@@ -580,7 +590,10 @@ function lock(msg){
   $('#lmsg').textContent=msg||'Laundry orders';$('#lerr').textContent='';
   const f=$('#lf');f.p.value='';setTimeout(()=>(f.u.value?f.p:f.u).focus(),50);
 }
-function unlock(){document.body.classList.remove('locked');render();}
+function unlock(){
+  document.body.classList.remove('locked');render();
+  if(new URLSearchParams(location.search).has('new')){history.replaceState(null,'',location.pathname);if(!dlg.open)orderForm(null);}
+}
 // Is the saved session still valid? Online: compare with users.json. Offline: allow up to OFFLINE_DAYS.
 async function checkAccess(){
   const ss=getSession();if(!ss)return lock();
@@ -618,6 +631,9 @@ $('#lf').onsubmit=async e=>{
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();});
 setInterval(()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();},60e3);
 checkAccess();
+// installable app + works offline
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
