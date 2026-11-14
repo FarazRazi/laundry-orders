@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">
+<meta name="theme-color" content="#4f6bed">
+<title>Laundry Orders</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--line:#eceef2;--ink:#1c1f26;--mut:#8b919e;--acc:#4f6bed;--accbg:#eef1fd;--ok:#2f9e66;--okbg:#e8f6ee;--warn:#c9821b;--bad:#d65252;--badbg:#fcecec;--shadow:0 1px 2px rgba(20,25,40,.04),0 4px 14px rgba(20,25,40,.05)}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1a1d24;--line:#262a33;--ink:#eceef3;--mut:#8b919e;--acc:#8ea2ff;--accbg:#252b45;--ok:#6fd39b;--okbg:#1e3329;--warn:#f0b765;--bad:#f08282;--badbg:#3a2224;--shadow:none}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:680px;margin:auto;padding:20px 16px 110px}
+.lbl{font-size:13px;color:var(--mut)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--mut);white-space:nowrap}
+.meta b{color:var(--ink);font-weight:600}
+.gear{background:var(--card);border:0;border-radius:50%;width:36px;height:36px;cursor:pointer;color:var(--mut);box-shadow:var(--shadow);font-size:16px}
+.frame{background:var(--card);border-radius:16px;box-shadow:var(--shadow)}
+.search{margin:18px 0 16px;display:flex;align-items:center;padding:0 14px;cursor:text}
+.search svg{flex:none;color:var(--mut)}
+.search input{flex:1;background:none;border:0;outline:none;padding:15px 10px;font-size:17px}
+.search input::placeholder{color:var(--mut)}
+.search input::-webkit-search-cancel-button{display:none}
+.search:focus-within{box-shadow:0 0 0 2px var(--acc)}
+.search button{background:var(--line);border:0;border-radius:50%;width:24px;height:24px;color:var(--mut);cursor:pointer;display:none;line-height:1}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{padding:14px 14px 12px;cursor:pointer;background:var(--card);border-radius:16px;box-shadow:var(--shadow);border:2px solid transparent;transition:border-color .15s}
+.stat b{display:block;font-size:28px;font-weight:650;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat.on{border-color:var(--acc)}
+.c-acc{color:var(--acc)}.c-ok{color:var(--ok)}.c-warn{color:var(--warn)}.c-bad{color:var(--bad)}.c-dim{color:var(--mut)}
+.info{display:flex;justify-content:space-between;margin:22px 4px 8px}
+.info a{cursor:pointer;color:var(--acc)}.info a.on{opacity:.4}
+#list{background:var(--card);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+#list:has(.empty){background:none;box-shadow:none}
+.row{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid var(--line);cursor:pointer}
+.row:first-child{border-top:0}
+.row:hover{background:var(--bg)}
+.no{font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
+.nm{font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+.p-received{background:var(--accbg);color:var(--acc)}.p-ready{background:var(--okbg);color:var(--ok)}.p-delivered{background:var(--line);color:var(--mut)}.p-late{background:var(--badbg);color:var(--bad)}
+.st small{display:block;font-size:13px;margin-top:3px}
+.empty{padding:50px 0;text-align:center;color:var(--mut)}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--acc);color:#fff;border:0;border-radius:30px;padding:15px 30px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 8px 24px rgba(79,107,237,.35)}
+@media (prefers-color-scheme:dark){.fab{color:#111318}}
+dialog{border:0;padding:0;background:transparent;color:var(--ink);width:min(500px,calc(100% - 20px));max-height:calc(100% - 30px)}
+dialog::backdrop{background:rgba(15,18,25,.45);backdrop-filter:blur(4px)}
+.panel{padding:22px;overflow:auto;border-radius:22px!important}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px}
+.head h2{margin:0;font-size:22px;font-weight:650}
+.x{background:var(--line);border:0;border-radius:50%;width:30px;height:30px;color:var(--mut);font-size:18px;cursor:pointer;line-height:1}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:9px 12px;margin-bottom:18px}
+.kv a{color:var(--acc);text-decoration:none}
+.lines{background:var(--bg);border-radius:12px;padding:6px 14px}
+.lines div{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.lines div:first-child{border-top:0}
+.lines .big{font-size:18px;font-weight:650}
+.alert{background:var(--badbg);color:var(--bad);padding:10px 12px;border-radius:10px;margin-top:14px;font-size:14px}
+.go{width:100%;margin-top:18px;padding:15px;border:0;border-radius:14px;font-weight:600;font-size:16px;cursor:pointer;background:var(--acc);color:#fff}
+.go.ok{background:var(--ok)}
+@media (prefers-color-scheme:dark){.go{color:#111318}}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.t{flex:1 1 auto;background:var(--bg);border:0;border-radius:10px;padding:10px 12px;font-size:14px;color:var(--ink);cursor:pointer}
+.t:hover{background:var(--line)}.t.bad{color:var(--bad)}
+.f{display:block;margin-bottom:14px}
+.f input,.f textarea,.irow input,.irow select{display:block;width:100%;margin-top:5px;background:var(--bg);border:1.5px solid transparent;border-radius:10px;padding:11px 12px;font-size:16px;outline:none}
+.f input:focus,.f textarea:focus,.irow input:focus,.irow select:focus{border-color:var(--acc)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.irow{display:grid;grid-template-columns:1fr 56px 74px 34px;gap:6px;margin-bottom:6px}
+.irow input,.irow select{margin:0;padding:10px 8px}
+.irow button{background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer}
+.seg{display:inline-flex;background:var(--bg);border-radius:10px;padding:3px;margin-bottom:10px}
+.seg button{border:0;background:none;padding:7px 12px;border-radius:8px;font-size:14px;color:var(--mut);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:0;background:var(--accbg);color:var(--acc);padding:8px 12px;border-radius:20px;font-size:14px;font-weight:550;cursor:pointer}
+.chip small{opacity:.7;font-weight:400;margin-left:4px}
+.chip.other{background:var(--bg);color:var(--mut)}
+.line{display:grid;grid-template-columns:1fr auto 70px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.line .nmi{width:100%;border:0;background:none;padding:2px 0;font-size:15px;font-weight:550;outline:none;min-width:0}
+.line .svc{border:0;background:none;padding:0;font-size:12px;color:var(--acc);cursor:pointer}
+.step{display:flex;align-items:center;background:var(--bg);border-radius:10px}
+.step button{border:0;background:none;width:30px;height:34px;font-size:18px;cursor:pointer;color:var(--acc)}
+.step span{min-width:22px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.line .rate,.ptab input{width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:10px;padding:8px;font-size:15px;outline:none;text-align:right}
+.line .rate:focus,.ptab input:focus{border-color:var(--acc)}
+.noitems{color:var(--mut);font-size:14px;padding:6px 0 12px}
+.ptab{display:grid;grid-template-columns:1fr 78px 78px 26px;gap:6px;align-items:center;margin:6px 0}
+.ptab input.pn{text-align:left}
+.ptab button{border:0;background:none;color:var(--mut);font-size:18px;cursor:pointer}
+.ptab .lbl{font-size:12px}
+a.t{text-align:center;text-decoration:none}
+.add{background:none;border:0;color:var(--acc);padding:6px 0;cursor:pointer;margin-bottom:14px;font-weight:600}
+.hint{font-size:13px;color:var(--ok);margin:-8px 0 12px}
+.sum{display:flex;justify-content:space-between;align-items:center;padding-top:4px}
+.sum b{font-size:22px;font-weight:650}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
+#slip{display:none}
+@media print{body{background:#fff}body>*:not(#slip){display:none!important}#slip{display:block;color:#000;font:13px monospace;width:72mm}}
+@media (max-width:480px){.meta .clock{display:none}.stats{gap:8px}.stat{padding:12px 10px 10px}.stat b{font-size:24px}.row{grid-template-columns:52px 1fr auto;padding:13px 14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h1 id="shop"></h1>
+    <div class="meta"><span class="clock" id="clock"></span><span>Today <b>Rs <span id="cash">0</span></b></span><button class="gear" id="setBtn" aria-label="Settings">⚙</button></div>
+  </div>
+  <label class="search frame"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" autocomplete="off" placeholder="Receipt, name or phone"><button id="qx" aria-label="Clear">×</button></label>
+  <div class="stats" id="stats"></div>
+  <div class="info lbl"><span id="info"></span><a id="allBtn">Show all</a></div>
+  <div id="list"></div>
+</div>
+<button class="fab" id="newBtn">+ New order</button>
+<dialog id="dlg"></dialog>
+<div id="toast"></div>
+<div id="slip"></div>
+
+<script>
+const KEY='dhulai.v1';
+// name, wash & iron rate, iron-only rate (0 = not offered)
+const DEFAULT_PRICES=[['Suit',180,60],['Shirt',90,30],['Trouser',90,30],['Coat',350,120],['Waistcoat',150,50],['Sherwani',600,200],['Dupatta',60,20],['Bedsheet',150,50],['Blanket',500,0]].map(([name,wash,iron])=>({name,wash,iron}));
+const SVC={wash:'Wash & iron',iron:'Iron only'};
+const STATUS={received:['In shop','p-received'],ready:['Ready','p-ready'],delivered:['Done','p-delivered']};
+
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return iso(d)};
+const daysBetween=(a,b)=>Math.round((new Date(b+'T00:00')-new Date(a+'T00:00'))/864e5);
+const fmt=s=>{if(!s)return'—';const[y,m,d]=s.split('-');return`${d}-${m}-${y.slice(2)}`};
+const digits=s=>(s||'').replace(/\D/g,'');
+// WhatsApp needs the full international number with no + or leading 0.
+// Accepts 0300-1234567, 3001234567, +92 300 1234567, 0092 300..., +92 0300...
+// Returns '' when the number can't be a WhatsApp number, so we never open a broken link.
+const waPhone=p=>{
+  const raw=String(p||'').trim();let d=digits(raw).replace(/^00/,'');
+  if(/^920?3\d{9}$/.test(d)||/^0?3\d{9}$/.test(d))return'92'+d.slice(-10);   // Pakistani mobile
+  return raw.startsWith('+')||digits(raw).startsWith('00')?(d.length>=10&&d.length<=15?d:''):'';
+};
+const localPhone=p=>{const w=waPhone(p);return w.startsWith('92')?'0'+w.slice(2):digits(p)};
+const waLink=(o,text)=>{const n=waPhone(o.phone);return n?`https://wa.me/${n}?text=${encodeURIComponent(text)}`:''};
+const norm=s=>(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+const paidOf=o=>(o.payments||[]).reduce((s,p)=>s+p.a,0);
+const totalOf=o=>o.items.reduce((s,i)=>s+i.qty*i.rate,0);
+const itemName=i=>i.type+(i.svc==='iron'?' (iron)':'');
+const itemsText=o=>o.items.map(i=>`${i.qty} ${itemName(i)}`).join(', ');
+const isLate=o=>(o.status==='received'&&o.due<today())||(o.status!=='delivered'&&daysBetween(o.received,today())>30);
+function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity=0,2000)}
+
+/* ---------- storage ---------- */
+let db;
+function load(){
+  let raw=null;try{raw=localStorage.getItem(KEY)}catch(e){return null}
+  if(!raw)return null;
+  try{const d=JSON.parse(raw);if(d&&Array.isArray(d.orders))return d}catch(e){}
+  // keep the unreadable data aside instead of overwriting it
+  try{localStorage.setItem(KEY+'.unreadable.'+Date.now(),raw)}catch(e){}
+  alert('Saved data could not be read. It was kept aside; restore your latest backup from Settings.');
+  return{settings:{},orders:[]};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){alert('Could not save on this device. Export a backup.')}}
+function demo(){
+  const t=today(),o=(id,name,phone,items,rd,dd,status,paid)=>({id,name,phone,items,received:addDays(t,rd),due:addDays(t,dd),status,mark:'',notes:'',demo:true,payments:paid?[{d:addDays(t,rd),a:paid}]:[]});
+  return[
+    o(20755,'Imran Ali','0300-1112233',[{type:'Suit',qty:2,rate:180}],-38,-36,'ready',0),
+    o(20756,'Muhammad Aslam','0321-4455667',[{type:'Suit',qty:1,rate:180},{type:'Coat',qty:1,rate:350}],-4,-2,'delivered',530),
+    o(20757,'Bilal Ahmed','0333-9876543',[{type:'Shirt',qty:3,rate:90}],-3,-1,'ready',100),
+    o(20758,'Sana Tariq','0345-2223344',[{type:'Blanket',qty:2,rate:500}],-2,-1,'received',0),
+    o(20759,'Abdul Rehman','0312-7788990',[{type:'Suit',qty:3,rate:180}],-1,1,'received',200),
+    o(20760,'Usman Shah','0300-5556677',[{type:'Suit',qty:1,rate:180}],0,2,'received',0),
+  ];
+}
+function migrate(d){
+  const s=d.settings||(d.settings={});
+  if(!Array.isArray(s.priceList)){
+    // older versions stored the price list as "Item = rate" text
+    const old=typeof s.prices==='string'?s.prices.split('\n').map(l=>{const i=l.lastIndexOf('=');return i<0?null:{name:l.slice(0,i).trim(),wash:+l.slice(i+1)||0,iron:0}}).filter(x=>x&&x.name&&x.name!=='Other'):[];
+    s.priceList=old.length&&!old.every(x=>DEFAULT_PRICES.some(p=>p.name===x.name&&p.wash===x.wash))?old:DEFAULT_PRICES.map(p=>({...p}));
+  }
+  delete s.prices;
+  s.priceList=s.priceList.filter(p=>p&&p.name).map(p=>({name:String(p.name),wash:Math.max(0,+p.wash||0),iron:Math.max(0,+p.iron||0)}));
+  // repair orders from old or hand-edited backups so nothing downstream crashes
+  const num=v=>Number.isFinite(+v)?+v:0,day=v=>/^\d{4}-\d\d-\d\d$/.test(v)?v:today();
+  d.orders=d.orders.filter(o=>o&&Number.isInteger(+o.id)&&+o.id>0).map(o=>({...o,
+    id:+o.id,name:String(o.name??''),phone:String(o.phone??''),mark:String(o.mark??''),notes:String(o.notes??''),
+    status:STATUS[o.status]?o.status:'received',received:day(o.received),due:day(o.due||o.received),
+    items:(Array.isArray(o.items)?o.items:[]).map(i=>({type:String(i?.type??'Other'),svc:i?.svc==='iron'?'iron':'wash',qty:Math.max(0,num(i?.qty)),rate:Math.max(0,num(i?.rate))})),
+    payments:(Array.isArray(o.payments)?o.payments:[]).map(p=>({...p,d:day(p?.d),a:num(p?.a)}))}));
+  if(d.demo){d.orders.forEach(o=>{if(o.id>=20755&&o.id<=20760)o.demo=true});delete d.demo;}  // older demo flag
+  s.shopName=String(s.shopName??'Laundry');s.shopPhone=String(s.shopPhone??'');s.days=Number.isFinite(+s.days)?Math.max(0,+s.days):2;
+  s.nextNo=Number.isInteger(+s.nextNo)&&+s.nextNo>0?+s.nextNo:Math.max(0,...d.orders.map(o=>o.id))+1;
+  return d;
+}
+db=migrate(load()||{settings:{shopName:'Laundry',shopPhone:'',nextNo:20761,days:2},orders:demo()});
+const prices=()=>db.settings.priceList;
+const byId=id=>db.orders.find(o=>o.id===+id);
+const nextFree=()=>{let n=+db.settings.nextNo||1;while(byId(n))n++;return n};
+
+/* ---------- list ---------- */
+let filter='active',query='';
+const FILTERS={
+  active:['Pending','c-acc',o=>o.status!=='delivered'],
+  ready:['Ready','c-ok',o=>o.status==='ready'],
+  late:['Late','c-bad',isLate],
+  delivered:['Done','c-dim',o=>o.status==='delivered'],
+  all:['All','',()=>true],
+};
+function matchOne(o,q){
+  const qd=digits(q),compact=q.replace(/[\s\-+#]/g,'');
+  if(qd&&qd===compact){                       // a number: receipt # or phone
+    if(String(o.id).includes(qd))return true;
+    if(qd.length<3)return false;
+    const ph=digits(localPhone(o.phone)),pq=digits(localPhone(q));
+    return ph.includes(pq)||ph.includes(qd.replace(/^(00)?92/,''));
+  }
+  const n=norm(q);
+  return norm(o.name).includes(n)||norm(o.mark).includes(n)||norm(o.notes).includes(n);
+}
+// whole query first (so "+92 300 111" works), else every word must match ("ali 0300")
+const matches=(o,q)=>matchOne(o,q)||q.split(/\s+/).filter(Boolean).every(w=>matchOne(o,w));
+function render(){
+  const t=today(),os=db.orders;
+  $('#shop').textContent=db.settings.shopName;
+  $('#cash').textContent=os.flatMap(o=>o.payments||[]).filter(p=>p.d===t).reduce((s,p)=>s+p.a,0).toLocaleString();
+  $('#stats').innerHTML=['active','ready','late','delivered'].map(k=>{const[l,c,fn]=FILTERS[k];
+    return`<div class="stat ${!query&&filter===k?'on':''}" data-f="${k}"><b class="${c}">${os.filter(fn).length}</b><span class="lbl">${l}</span></div>`}).join('');
+  let list=query?os.filter(o=>matches(o,query)):os.filter(FILTERS[filter][2]);
+  const exact=+digits(query);
+  list.sort((a,b)=>(b.id===exact)-(a.id===exact)||(a.status==='delivered')-(b.status==='delivered')||b.id-a.id);
+  $('#info').textContent=query?`${list.length} match${list.length===1?'':'es'}`:`${FILTERS[filter][0]} (${list.length})`;
+  $('#allBtn').classList.toggle('on',!query&&filter==='all');
+  $('#list').innerHTML=list.length?list.slice(0,300).map(row).join('')+(list.length>300?`<div class="empty">Showing 300 of ${list.length}. Search to find older orders.</div>`:''):`<div class="empty">${query?'No match. Try phone or part of name.':'Nothing here.'}</div>`;
+  $('#qx').style.display=query?'block':'none';
+}
+function row(o){
+  const bal=totalOf(o)-paidOf(o),late=isLate(o),[s,c]=STATUS[o.status];
+  return`<div class="row" data-id="${o.id}">
+    <div class="no">${o.id}</div>
+    <div style="min-width:0"><div class="nm" dir="auto">${esc(o.name)}${o.mark?` <span class="c-dim">[${esc(o.mark)}]</span>`:''}</div>
+      <div class="sub">${esc(itemsText(o))}${o.phone?' · '+esc(o.phone):''}</div></div>
+    <div class="st"><span class="pill ${late?'p-late':c}">${late?'Late':s}</span><small class="${bal>0?'c-warn':'c-dim'}">${bal>0?'Rs '+bal:o.status==='delivered'?fmt(o.deliveredOn):'paid'}</small></div>
+  </div>`;
+}
+
+/* ---------- dialogs ---------- */
+const dlg=$('#dlg');let curId=null;
+const shell=(title,body,right='')=>`<div class="panel frame"><div class="head"><h2>${title}</h2><span>${right}<button class="x" data-close aria-label="Close">×</button></span></div>${body}</div>`;
+let dirty=false;
+function openDlg(html){dlg.innerHTML=html;dirty=false;if(!dlg.open)dlg.showModal()}
+const canLeave=()=>!dirty||confirm('Discard your changes?');
+function closeDlg(){if(canLeave())dlg.close()}
+dlg.addEventListener('input',e=>{if(e.target.closest('form'))dirty=true});
+dlg.addEventListener('cancel',e=>{if(!canLeave())e.preventDefault()});   // Esc / Android back
+dlg.addEventListener('click',e=>{
+  if(e.target===dlg||e.target.closest('[data-close]'))return closeDlg();
+  if(e.target.closest('form button[type=button]:not(.x)'))dirty=true;
+  const a=e.target.closest('[data-act]');if(a)action(a.dataset.act);
+});
+
+function detail(id){
+  curId=+id;const o=byId(id),t=today(),total=totalOf(o),paid=paidOf(o),bal=total-paid,age=daysBetween(o.received,t),[s,c]=STATUS[o.status];
+  const next=o.status==='received'?`<button class="go ok" data-act="ready">Mark ready</button>`
+    :o.status==='ready'?`<button class="go" data-act="deliver">Hand over${bal>0?` · collect Rs ${bal}`:''}</button>`
+    :bal>0?`<button class="go" data-act="pay">Collect Rs ${bal}</button>`:'';
+  openDlg(shell(`#${o.id}`,`
+    <div class="kv">
+      <span class="lbl">Name</span><span dir="auto">${esc(o.name)}</span>
+      <span class="lbl">Phone</span><span>${o.phone?`<a href="tel:${esc(localPhone(o.phone))}">${esc(o.phone)}</a>`:'—'}</span>
+      <span class="lbl">In</span><span>${fmt(o.received)} <span class="c-dim">· ${age===0?'today':age+'d ago'}</span></span>
+      <span class="lbl">Due</span><span>${fmt(o.due)}</span>
+      ${o.notifiedOn&&o.status!=='delivered'?`<span class="lbl">Notified</span><span>${fmt(o.notifiedOn)}</span>`:''}
+      ${o.deliveredOn?`<span class="lbl">Out</span><span>${fmt(o.deliveredOn)}</span>`:''}
+      ${o.mark?`<span class="lbl">Tag</span><span>${esc(o.mark)}</span>`:''}
+      ${o.notes?`<span class="lbl">Notes</span><span dir="auto">${esc(o.notes)}</span>`:''}
+    </div>
+    <div class="lines">${o.items.map(i=>`<div><span>${i.qty} × ${esc(itemName(i))}</span><span>${i.qty*i.rate}</span></div>`).join('')}
+      <div><span class="c-dim">Paid</span><span class="c-dim">${paid}</span></div>
+      <div class="big"><span>${bal<0?'Overpaid':'Balance'}</span><span class="${bal>0?'c-warn':bal<0?'c-bad':'c-ok'}">Rs ${Math.abs(bal)}</span></div></div>
+    ${age>30&&o.status!=='delivered'?'<div class="alert">Uncollected for 30+ days. Call the customer.</div>':''}
+    ${next}
+    <div class="tools">
+      ${o.status==='ready'?waBtn(o,readyText(o),'Notify','notified'):''}
+      ${waBtn(o,receiptText(o),'Send receipt','')}
+      ${bal>0&&o.status!=='delivered'?'<button class="t" data-act="pay">Payment</button>':''}
+      <button class="t" data-act="print">Print</button>
+      <button class="t" data-act="edit">Edit</button>
+      ${o.status!=='received'?'<button class="t" data-act="undo">Undo</button>':''}
+      <button class="t bad" data-act="del">Delete</button>
+    </div>`,`<span class="pill ${c}" style="margin-right:10px">${s}</span>`));
+}
+
+function action(act){
+  const o=byId(curId),t=today();if(!o)return;
+  const bal=totalOf(o)-paidOf(o);
+  if(act==='ready'){o.status='ready';o.readyOn=t;save();render();detail(o.id);toast('Marked ready');}
+  else if(act==='deliver'){
+    let got=0;
+    if(bal>0){got=askAmount(`Amount received from ${o.name} (balance Rs ${bal})`,bal);if(got===null)return;
+      if(got<bal&&!confirm(`Rs ${bal-got} will still be owed. Hand over anyway?`))return;}
+    if(got>0)o.payments.push({d:t,a:got,final:true});
+    o.status='delivered';o.deliveredOn=t;save();render();detail(o.id);toast('Handed over');
+  }
+  else if(act==='pay'){
+    const got=askAmount(`Amount received (balance Rs ${bal})`,bal);if(!got)return;
+    o.payments.push({d:t,a:got});save();render();detail(o.id);toast(`Rs ${got} received`);
+  }
+  else if(act==='undo'){
+    if(o.status==='delivered'){o.status='ready';delete o.deliveredOn;o.payments=o.payments.filter(p=>!p.final);}
+    else{o.status='received';delete o.readyOn;delete o.notifiedOn;}
+    save();render();detail(o.id);
+  }
+  else if(act==='del'){if(confirm(`Delete receipt #${o.id}?`)){db.orders=db.orders.filter(x=>x!==o);save();render();dlg.close();}}
+  else if(act==='edit')orderForm(o);
+  else if(act==='print')printSlip(o);
+  // let the link open WhatsApp first; redraw a moment later so the tapped link isn't removed mid-navigation
+  else if(act==='notified'){o.notifiedOn=t;save();setTimeout(()=>{render();if(dlg.open&&curId===o.id)detail(o.id)},400);}
+  else if(act==='badPhone')toast(o.phone?`“${o.phone}” is not a valid WhatsApp number — tap Edit to fix`:'No phone number — tap Edit to add one');
+}
+function receiptText(o){
+  const total=totalOf(o),paid=paidOf(o);
+  return`*${db.settings.shopName}*${db.settings.shopPhone?' '+db.settings.shopPhone:''}\nReceipt #${o.id}\nName: ${o.name}\n`+
+    o.items.map(i=>`${i.qty} × ${itemName(i)} = ${i.qty*i.rate}`).join('\n')+
+    `\nTotal: Rs ${total}\nPaid: Rs ${paid}\nBalance: Rs ${total-paid}\nReceived: ${fmt(o.received)}\nReady by: ${fmt(o.due)}\n\nShow this receipt number at pickup. Please collect within 30 days.`;
+}
+function askAmount(msg,def){
+  const v=prompt(msg,def);if(v===null)return null;
+  const n=Math.round(+digits(v));return n>=0?n:null;
+}
+function readyText(o){return`Hello ${o.name}, your clothes are ready for pickup.\nReceipt #${o.id}\nBalance: Rs ${totalOf(o)-paidOf(o)}\n— ${db.settings.shopName} ${db.settings.shopPhone}`.trim()}
+// A real <a href> instead of window.open(): popup blockers, home-screen apps and
+// in-app browsers all allow it, and it doesn't leave a blank tab behind.
+function waBtn(o,text,label,act){
+  const url=waLink(o,text);
+  return url?`<a class="t" href="${esc(url)}" target="_blank" rel="noopener"${act?` data-act="${act}"`:''}>${label}</a>`
+            :`<button class="t" data-act="badPhone">${label}</button>`;
+}
+function printSlip(o){$('#slip').innerHTML=`<pre style="white-space:pre-wrap;font:inherit">${esc(receiptText(o).replace(/\*/g,''))}</pre>`;window.print()}
+
+/* ---------- order form ---------- */
+function orderForm(o){
+  const isNew=!o,t=today(),P=prices();
+  const days=Number.isFinite(+db.settings.days)?+db.settings.days:2;
+  const src=o||{id:nextFree(),name:'',phone:'',mark:'',notes:'',received:t,due:addDays(t,days),items:[],payments:[]};
+  let items=src.items.map(i=>({svc:'wash',...i})),mode='wash';
+  openDlg(shell(isNew?'New order':`Edit #${src.id}`,`<form id="of">
+    <div class="two">
+      <label class="f"><span class="lbl">Receipt #</span><input name="id" type="number" inputmode="numeric" required value="${src.id}"></label>
+      <label class="f"><span class="lbl">Tag</span><input name="mark" value="${esc(src.mark)}" placeholder="H"></label>
+    </div>
+    <label class="f"><span class="lbl">Phone</span><input name="phone" type="tel" inputmode="tel" value="${esc(src.phone)}" placeholder="03xx-xxxxxxx"></label>
+    <div class="hint" id="custHint"></div>
+    <label class="f"><span class="lbl">Name</span><input name="name" dir="auto" required value="${esc(src.name)}" list="names"></label>
+    <datalist id="names">${[...new Set(db.orders.map(x=>x.name).reverse())].filter(Boolean).slice(0,500).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="lbl" style="margin-bottom:6px">Tap to add items</div>
+    <div class="seg" id="mode"><button type="button" data-m="wash" class="on">${SVC.wash}</button><button type="button" data-m="iron">${SVC.iron}</button></div>
+    <div class="chips" id="chips"></div>
+    <div id="items" style="margin-bottom:14px"></div>
+    <div class="two">
+      <label class="f"><span class="lbl">Received</span><input name="received" type="date" required value="${src.received}"></label>
+      <label class="f"><span class="lbl">Ready by</span><input name="due" type="date" required value="${src.due}"></label>
+    </div>
+    ${isNew?`<label class="f"><span class="lbl">Advance paid</span><input name="adv" type="number" min="0" inputmode="numeric" value="0"></label>`:''}
+    <label class="f"><span class="lbl">Notes</span><input name="notes" dir="auto" value="${esc(src.notes)}" placeholder="Stain on collar…"></label>
+    <div class="sum"><span class="lbl">Total</span><b>Rs <span id="tot">0</span></b></div>
+    <button class="go" type="submit">Save</button>
+  </form>`));
+  const f=$('#of'),box=$('#items');
+  const rateOf=(type,svc)=>{const p=P.find(p=>p.name===type);return p?(+p[svc]||0):null};
+  const sum=()=>$('#tot').textContent=items.reduce((s,i)=>s+i.qty*i.rate,0);
+  const drawChips=()=>{
+    $('#mode').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+    $('#chips').innerHTML=P.filter(p=>+p[mode]>0).map(p=>`<button type="button" class="chip" data-add="${esc(p.name)}">${esc(p.name)}<small>${p[mode]}</small></button>`).join('')
+      +'<button type="button" class="chip other" data-add="">+ Other</button>';
+  };
+  const draw=()=>{
+    box.innerHTML=items.length?items.map((it,k)=>`<div class="line" data-k="${k}">
+        <div style="min-width:0"><input class="nmi" data-f="type" value="${esc(it.type)}" placeholder="Item name" aria-label="Item name">
+          <button type="button" class="svc" data-svc>${SVC[it.svc]||SVC.wash} ⇄</button></div>
+        <div class="step"><button type="button" data-d="-1" aria-label="Less">−</button><span>${it.qty}</span><button type="button" data-d="1" aria-label="More">+</button></div>
+        <input class="rate" data-f="rate" type="number" min="0" inputmode="numeric" value="${it.rate}" aria-label="Rate">
+      </div>`).join(''):'<div class="noitems">No items yet.</div>';
+    sum();
+  };
+  drawChips();draw();
+  $('#mode').onclick=e=>{const b=e.target.closest('[data-m]');if(b){mode=b.dataset.m;drawChips();}};
+  $('#chips').onclick=e=>{
+    const b=e.target.closest('[data-add]');if(!b)return;const name=b.dataset.add;
+    const same=name&&items.find(i=>i.type===name&&i.svc===mode);
+    if(same)same.qty++;else items.push({type:name,svc:mode,qty:1,rate:name?rateOf(name,mode):0});
+    draw();if(!name)box.querySelector('.line:last-child .nmi').focus();
+  };
+  box.addEventListener('input',e=>{
+    const k=e.target.closest('.line').dataset.k,fld=e.target.dataset.f;
+    if(fld==='rate'){items[k].rate=Math.max(0,+e.target.value||0);sum();}
+    else if(fld==='type')items[k].type=e.target.value;
+  });
+  box.addEventListener('click',e=>{
+    const line=e.target.closest('.line');if(!line)return;const it=items[line.dataset.k];
+    const d=e.target.closest('[data-d]');
+    if(d){it.qty+=+d.dataset.d;if(it.qty<1)items.splice(line.dataset.k,1);draw();}
+    else if(e.target.closest('[data-svc]')){it.svc=it.svc==='iron'?'wash':'iron';const r=rateOf(it.type,it.svc);if(r!==null){it.rate=r;if(!r)toast(`No ${SVC[it.svc]} price for ${it.type}. Type the rate.`);}draw();}
+  });
+  f.phone.addEventListener('input',()=>{
+    const p=localPhone(f.phone.value);if(p.length<10){$('#custHint').textContent='';return;}
+    const prev=db.orders.filter(x=>localPhone(x.phone)===p&&x!==o);
+    if(prev.length){if(!f.name.value)f.name.value=prev[prev.length-1].name;
+      const open=prev.filter(x=>x.status!=='delivered').length;
+      $('#custHint').textContent=`↺ Returning · ${prev.length} order(s)${open?` · ${open} pending`:''}`;}
+    else $('#custHint').textContent='+ New customer';
+  });
+  f.onsubmit=e=>{
+    e.preventDefault();
+    const id=+f.id.value;
+    if(byId(id)&&byId(id)!==o){alert(`Receipt #${id} already exists.`);return;}
+    items=items.filter(i=>i.qty>0).map(i=>({...i,type:i.type.trim()||'Other'}));if(!items.length){alert('Add at least one item.');return;}
+    if(f.due.value<f.received.value){alert('"Ready by" date is before the received date.');return;}
+    const total=items.reduce((s,i)=>s+i.qty*i.rate,0),adv=isNew?Math.max(0,+f.adv.value||0):0;
+    if(adv>total){alert(`Advance (Rs ${adv}) is more than the total (Rs ${total}).`);return;}
+    const expect=nextFree();
+    if(isNew&&id>expect+50&&!confirm(`Receipt #${id} is far ahead of the next number (#${expect}). Is that correct?`))return;
+    const rec=o||{status:'received',payments:[]};
+    Object.assign(rec,{id,name:f.name.value.trim(),phone:f.phone.value.trim(),mark:f.mark.value.trim(),notes:f.notes.value.trim(),received:f.received.value,due:f.due.value,items});
+    if(isNew){if(adv>0)rec.payments.push({d:t,a:adv});db.orders.push(rec);}
+    if(isNew&&id>=expect)db.settings.nextNo=id+1;
+    dirty=false;
+    save();render();detail(id);toast(isNew?`Saved #${id}`:'Updated');
+  };
+  if(isNew)setTimeout(()=>f.phone.focus(),50);
+}
+
+/* ---------- settings ---------- */
+function settings(){
+  const s=db.settings;
+  openDlg(shell('Settings',`<form id="sf">
+    <label class="f"><span class="lbl">Shop name</span><input name="shopName" value="${esc(s.shopName)}"></label>
+    <div class="two"><label class="f"><span class="lbl">Shop phone</span><input name="shopPhone" value="${esc(s.shopPhone)}"></label>
+    <label class="f"><span class="lbl">Next receipt #</span><input name="nextNo" type="number" min="1" value="${nextFree()}"></label></div>
+    <label class="f"><span class="lbl">Days until ready</span><input name="days" type="number" min="0" value="${s.days}"></label>
+    <div class="lbl" style="margin-bottom:2px">Price list (Rs) — leave a rate at 0 if you don't offer it</div>
+    <div class="ptab"><span class="lbl">Item</span><span class="lbl" style="text-align:right">${SVC.wash}</span><span class="lbl" style="text-align:right">${SVC.iron}</span><span></span></div>
+    <div id="ptab"></div>
+    <button type="button" class="add" id="padd">+ Add item</button>
+    <div class="tools">
+      <button type="button" class="t" id="exp">Backup</button>
+      <button type="button" class="t" id="impB">Restore</button>
+      <button type="button" class="t bad" id="wipe">${db.orders.some(o=>o.demo)?'Remove sample orders':'Erase all'}</button>
+      <input type="file" id="imp" accept=".json,application/json" hidden>
+    </div>
+    <p class="sub" style="white-space:normal;margin:12px 0 0">Data lives on this device only. Back up daily.</p>
+    <button class="go">Save</button></form>`));
+  const f=$('#sf'),pt=$('#ptab');
+  let list=s.priceList.map(p=>({...p}));
+  const read=()=>{list=[...pt.querySelectorAll('.ptab')].map(r=>{const[n,w,i]=r.querySelectorAll('input');return{name:n.value.trim(),wash:Math.max(0,+w.value||0),iron:Math.max(0,+i.value||0)}})};
+  const drawP=()=>{pt.innerHTML=list.map((p,k)=>`<div class="ptab" data-k="${k}"><input class="pn" value="${esc(p.name)}" placeholder="Item" aria-label="Item"><input type="number" min="0" inputmode="numeric" value="${p.wash}" aria-label="${SVC.wash}"><input type="number" min="0" inputmode="numeric" value="${p.iron}" aria-label="${SVC.iron}"><button type="button" data-rm aria-label="Remove">×</button></div>`).join('')};
+  drawP();
+  $('#padd').onclick=()=>{read();list.push({name:'',wash:0,iron:0});drawP();pt.querySelector('.ptab:last-child input').focus();};
+  pt.onclick=e=>{const b=e.target.closest('[data-rm]');if(b){read();list.splice(b.closest('.ptab').dataset.k,1);drawP();}};
+  f.onsubmit=e=>{e.preventDefault();read();
+    const names=list.filter(p=>p.name).map(p=>p.name.toLowerCase());
+    if(new Set(names).size!==names.length){alert('Two items have the same name.');return;}
+    Object.assign(s,{shopName:f.shopName.value.trim()||'Laundry',shopPhone:f.shopPhone.value.trim(),nextNo:Math.max(1,parseInt(f.nextNo.value)||s.nextNo),days:Math.max(0,parseInt(f.days.value)||0),priceList:list.filter(p=>p.name)});
+    dirty=false;save();render();dlg.close();toast('Saved');};
+  $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download=`laundry-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);};
+  $('#impB').onclick=()=>$('#imp').click();
+  $('#imp').onchange=async e=>{
+    let d;try{d=migrate(JSON.parse(await e.target.files[0].text()));if(!Array.isArray(d.orders))throw 0;d.orders.forEach(o=>{totalOf(o);paidOf(o)})}
+    catch(_){alert('Not a valid backup file.');return}finally{e.target.value=''}
+    if(!confirm(`Replace current data with this backup (${d.orders.length} orders)?`))return;
+    try{localStorage.setItem(KEY+'.before-restore',JSON.stringify(db))}catch(_){}   // undo safety net
+    db=d;save();render();dlg.close();toast('Restored');
+  };
+  $('#wipe').onclick=()=>{
+    const sample=db.orders.some(o=>o.demo);
+    if(!confirm(sample?'Remove the sample orders? Your real orders stay.':'Erase ALL orders? Back up first!'))return;
+    db.orders=sample?db.orders.filter(o=>!o.demo):[];save();render();dlg.close();
+  };
+}
+
+/* ---------- wiring ---------- */
+const q=$('#q');
+q.addEventListener('input',()=>{query=q.value.trim();render()});
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){const o=byId(digits(q.value));if(o)detail(o.id);}});
+$('#qx').onclick=e=>{e.preventDefault();q.value='';query='';render();q.focus()};
+$('#allBtn').onclick=()=>{filter='all';q.value='';query='';render()};
+document.addEventListener('click',e=>{
+  const f=e.target.closest('.stat');if(f){filter=f.dataset.f;q.value='';query='';render();return;}
+  const r=e.target.closest('.row');if(r)detail(r.dataset.id);
+});
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!dlg.open&&document.activeElement!==q){e.preventDefault();q.focus();}});
+$('#newBtn').onclick=()=>orderForm(null);
+$('#setBtn').onclick=settings;
+const tick=()=>{const d=new Date();$('#clock').textContent=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})};
+let shownDay=today();
+const refresh=()=>{tick();if(today()!==shownDay){shownDay=today();render();}};
+tick();setInterval(refresh,30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();render();}});
+// another tab or the home-screen app saved: reload so neither copy overwrites the other
+window.addEventListener('storage',e=>{if(e.key===KEY&&e.newValue){db=migrate(load());render();if(dlg.open&&!dirty){curId&&byId(curId)&&!dlg.querySelector('form')?detail(curId):dlg.close();}}});
+render();
+</script>
+</body>
+</html>
