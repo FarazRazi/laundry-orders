@@ -18,7 +18,7 @@ PBKDF2-SHA256 hashes) and only the developer changes them, from this folder:
 ```sh
 node manage-users.mjs list
 node manage-users.mjs add <username> "Shop name"   # prints a new random password once
-node manage-users.mjs passwd <username>            # new random password (add --ask to type one)
+node manage-users.mjs passwd <username> [password] # set a password (random if left out)
 node manage-users.mjs disable <username>           # or: enable / remove
 git commit -am "update users" && git push
 ```

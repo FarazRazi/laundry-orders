@@ -3,8 +3,7 @@
 //
 //   node manage-users.mjs list
 //   node manage-users.mjs add <username> ["Shop name"]   create a user (random password printed once)
-//   node manage-users.mjs passwd <username>              give a user a new random password
-//   node manage-users.mjs passwd <username> --ask        type the new password yourself (min 10 chars)
+//   node manage-users.mjs passwd <username> [password]   set a password (random if you leave it out)
 //   node manage-users.mjs disable <username>             block sign-in, keep the account
 //   node manage-users.mjs enable <username>
 //   node manage-users.mjs remove <username>
@@ -34,10 +33,9 @@ function setPassword(user, pass) {
   user.hash = hash(pass, user.salt, ITER);
   user.changed = new Date().toISOString().slice(0, 10);
 }
-async function newPassword() {
-  if (!process.argv.includes('--ask')) return genPass();
-  const p = await ask('New password (min 10 chars): ');
-  if (p.length < 10) die('Too short. Passwords are checked against a public hash, so use at least 10 characters.');
+async function newPassword(given) {
+  let p = given ?? (process.argv.includes('--ask') ? await ask('New password (min 6 chars): ') : genPass());
+  if (p.length < 6) die('Too short: use at least 6 characters.');
   return p;
 }
 
@@ -61,7 +59,7 @@ switch (cmd) {
     break;
   }
   case 'passwd': {
-    need(); const user = find(); const pass = await newPassword(); setPassword(user, pass); save(d);
+    need(); const user = find(); const pass = await newPassword(shop); setPassword(user, pass); save(d);
     console.log(`New password for ${name}: ${pass}\nThen push. Devices signed in as ${name} will be asked to sign in again.`);
     break;
   }
