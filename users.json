@@ -1,0 +1,12 @@
+{
+  "users": [
+    {
+      "u": "shop",
+      "shop": "My Dry Cleaners",
+      "salt": "4d57cecf37656e479f6d3c5c7fc47707",
+      "iter": 600000,
+      "hash": "be3d303043ffc72b0be0aeaf7aeb53b99bf5d8244a0499e7e79bc78445e037e6",
+      "changed": "2026-11-14"
+    }
+  ]
+}

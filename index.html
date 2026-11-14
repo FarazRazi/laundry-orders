@@ -107,13 +107,32 @@ a.t{text-align:center;text-decoration:none}
 .hint{font-size:13px;color:var(--ok);margin:-8px 0 12px}
 .sum{display:flex;justify-content:space-between;align-items:center;padding-top:4px}
 .sum b{font-size:22px;font-weight:650}
+/* login */
+body.locked .wrap,body.locked .fab{display:none}
+#login{display:none;min-height:100svh;align-items:center;justify-content:center;padding:24px 16px}
+body.locked #login{display:flex}
+#login form{width:100%;max-width:360px;padding:28px 22px}
+#login h2{margin:0 0 4px;font-size:24px;font-weight:650}
+#login .err{color:var(--bad);font-size:14px;min-height:20px;margin:4px 0 0}
+.logo{width:48px;height:48px;border-radius:14px;background:var(--accbg);color:var(--acc);display:grid;place-items:center;margin-bottom:16px}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
 #slip{display:none}
 @media print{body{background:#fff}body>*:not(#slip){display:none!important}#slip{display:block;color:#000;font:13px monospace;width:72mm}}
 @media (max-width:480px){.panel{padding:18px 14px}.kv{grid-template-columns:76px minmax(0,1fr)}.kv>*{min-width:0;overflow-wrap:anywhere}.meta .clock{display:none}.stats{gap:8px}.stat{padding:12px 10px 10px}.stat b{font-size:24px}.row{grid-template-columns:52px 1fr auto;padding:13px 14px}}
 </style>
 </head>
-<body>
+<body class="locked">
+<div id="login">
+  <form class="frame" id="lf" autocomplete="on">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+    <h2>Sign in</h2>
+    <p class="lbl" id="lmsg" style="margin:0 0 18px">Laundry orders</p>
+    <label class="f"><span class="lbl">Username</span><input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label class="f"><span class="lbl">Password</span><input name="p" type="password" autocomplete="current-password" required></label>
+    <p class="err" id="lerr" role="alert"></p>
+    <button class="go" id="lbtn">Sign in</button>
+  </form>
+</div>
 <div class="wrap">
   <div class="bar">
     <h1 id="shop"></h1>
@@ -247,6 +266,7 @@ function matchOne(o,q){
 // whole query first (so "+92 300 111" works), else every word must match ("ali 0300")
 const matches=(o,q)=>matchOne(o,q)||q.split(/\s+/).filter(Boolean).every(w=>matchOne(o,w));
 function render(){
+  if(document.body.classList.contains('locked'))return;   // never draw orders behind the login screen
   const t=today(),os=db.orders;
   $('#shop').textContent=db.settings.shopName;
   $('#cash').textContent=os.flatMap(o=>o.payments||[]).filter(p=>p.d===t).reduce((s,p)=>s+p.a,0).toLocaleString();
@@ -476,6 +496,7 @@ function settings(){
     <button type="button" class="add" id="padd">+ Add item</button>
     <div class="tools">
       <button type="button" class="t" id="exp">Backup</button>
+      <button type="button" class="t" id="logout">Sign out</button>
       <button type="button" class="t" id="impB">Restore</button>
       <button type="button" class="t bad" id="wipe">${db.orders.some(o=>o.demo)?'Remove sample orders':'Erase all'}</button>
       <input type="file" id="imp" accept=".json,application/json" hidden>
@@ -495,6 +516,7 @@ function settings(){
     Object.assign(s,{shopName:f.shopName.value.trim()||'Laundry',shopPhone:f.shopPhone.value.trim(),nextNo:Math.max(1,parseInt(f.nextNo.value)||s.nextNo),days:Math.max(0,parseInt(f.days.value)||0),priceList:list.filter(p=>p.name),pricesEdited:true});
     dirty=false;save();render();dlg.close();toast('Saved');};
   $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download=`laundry-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);};
+  $('#logout').onclick=()=>{if(confirm('Sign out on this device? Orders stay saved here.')){dlg.close();lock('Signed out.');}};
   $('#impB').onclick=()=>$('#imp').click();
   $('#imp').onchange=async e=>{
     let d;try{d=migrate(JSON.parse(await e.target.files[0].text()));if(!Array.isArray(d.orders))throw 0;d.orders.forEach(o=>{totalOf(o);paidOf(o)})}
@@ -529,8 +551,73 @@ const refresh=()=>{tick();if(today()!==shownDay){shownDay=today();render();}};
 tick();setInterval(refresh,30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();render();}});
 // another tab or the home-screen app saved: reload so neither copy overwrites the other
-window.addEventListener('storage',e=>{if(e.key===KEY&&e.newValue){db=migrate(load());render();if(dlg.open&&!dirty){curId&&byId(curId)&&!dlg.querySelector('form')?detail(curId):dlg.close();}}});
-render();
+window.addEventListener('storage',e=>{if(e.key===SESSION_KEY){checkAccess();return;}if(e.key===KEY&&e.newValue){db=migrate(load());render();if(dlg.open&&!dirty){curId&&byId(curId)&&!dlg.querySelector('form')?detail(curId):dlg.close();}}});
+/* ---------- login ----------
+   Accounts live in users.json next to this page and are managed by the developer with
+   manage-users.mjs (add / passwd / disable / remove, then git push). Passwords are stored
+   only as PBKDF2-SHA256 hashes. Each device re-checks users.json whenever it is online,
+   so removing a user, disabling them or changing their password signs that device out. */
+const SESSION_KEY='dhulai.session',OFFLINE_DAYS=30,RECHECK_MS=10*60e3;
+let lastCheck=0,fails=0,waitUntil=0;
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+async function pbkdf2(pass,saltHex,iter){
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveBits']);
+  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:unhex(saltHex),iterations:iter},key,256));
+}
+const same=(a,b)=>{if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a.charCodeAt(i)^b.charCodeAt(i);return d===0};
+async function fetchUsers(){
+  const r=await fetch('users.json?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('users.json '+r.status);
+  const j=await r.json();if(!Array.isArray(j.users))throw new Error('bad users.json');
+  return j.users;
+}
+const getSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY))}catch(e){return null}};
+const setSession=v=>{try{v?localStorage.setItem(SESSION_KEY,JSON.stringify(v)):localStorage.removeItem(SESSION_KEY)}catch(e){}};
+function lock(msg){
+  setSession(null);if(dlg.open)dlg.close();
+  document.body.classList.add('locked');$('#list').innerHTML='';
+  $('#lmsg').textContent=msg||'Laundry orders';$('#lerr').textContent='';
+  const f=$('#lf');f.p.value='';setTimeout(()=>(f.u.value?f.p:f.u).focus(),50);
+}
+function unlock(){document.body.classList.remove('locked');render();}
+// Is the saved session still valid? Online: compare with users.json. Offline: allow up to OFFLINE_DAYS.
+async function checkAccess(){
+  const ss=getSession();if(!ss)return lock();
+  let users;
+  try{users=await fetchUsers();}catch(e){
+    if(Date.now()-ss.ok<OFFLINE_DAYS*864e5)return unlock();
+    return lock('You have been offline too long. Connect to the internet and sign in.');
+  }
+  lastCheck=Date.now();
+  const u=users.find(x=>x.u===ss.u);
+  if(!u||u.disabled||!same(u.hash,ss.h))return lock(u&&u.disabled?'This account has been disabled.':'Please sign in again.');
+  ss.ok=Date.now();setSession(ss);unlock();
+}
+$('#lf').onsubmit=async e=>{
+  e.preventDefault();const f=e.target,err=$('#lerr'),btn=$('#lbtn');
+  if(Date.now()<waitUntil){err.textContent=`Too many tries. Wait ${Math.ceil((waitUntil-Date.now())/1000)}s.`;return;}
+  if(!window.crypto?.subtle){err.textContent='Open the app from its https:// link to sign in.';return;}
+  btn.disabled=true;btn.textContent='Checking…';err.textContent='';
+  try{
+    const users=await fetchUsers(),name=f.u.value.trim().toLowerCase();
+    const u=users.find(x=>x.u===name);
+    // hash even when the user doesn't exist, so timing doesn't reveal valid usernames
+    const h=await pbkdf2(f.p.value,u?.salt||'00'.repeat(16),u?.iter||600000);
+    if(u&&!u.disabled&&same(h,u.hash)){
+      fails=0;setSession({u:u.u,h:u.hash,ok:Date.now()});lastCheck=Date.now();
+      if(u.shop&&(!db.settings.shopName||db.settings.shopName==='Laundry')){db.settings.shopName=u.shop;save();}
+      f.p.value='';unlock();
+    }else{
+      fails++;if(fails>=5){waitUntil=Date.now()+30e3*(fails-4);}
+      err.textContent=u&&u.disabled?'This account has been disabled.':'Wrong username or password.';
+    }
+  }catch(_){err.textContent='Could not reach the server. Check the internet connection.';}
+  btn.disabled=false;btn.textContent='Sign in';
+};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();});
+setInterval(()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();},60e3);
+checkAccess();
 </script>
 </body>
 </html>
