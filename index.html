@@ -338,7 +338,7 @@ function detail(id){
     ${next}
     <div class="tools">
       ${o.status==='ready'?waBtn(o,readyText(o),'Notify','notified'):''}
-      ${waBtn(o,receiptText(o),'Send receipt','')}
+      ${waBtn(o,receiptText(o),'Send receipt','receiptSent')}
       ${bal>0&&o.status!=='delivered'?'<button class="t" data-act="pay">Payment</button>':''}
       <button class="t" data-act="print">Print</button>
       <button class="t" data-act="edit">Edit</button>
@@ -350,29 +350,32 @@ function detail(id){
 function action(act){
   const o=byId(curId),t=today();if(!o)return;
   const bal=totalOf(o)-paidOf(o);
-  if(act==='ready'){o.status='ready';o.readyOn=t;save();render();detail(o.id);toast('Marked ready');}
+  if(act==='ready'){o.status='ready';o.readyOn=t;save();render();detail(o.id);toast('Marked ready');track('order_marked_ready',{days_in_shop:daysBetween(o.received,t),on_time:t<=o.due});}
   else if(act==='deliver'){
     let got=0;
     if(bal>0){got=askAmount(`Amount received from ${o.name} (balance Rs ${bal})`,bal);if(got===null)return;
       if(got<bal&&!confirm(`Rs ${bal-got} will still be owed. Hand over anyway?`))return;}
     if(got>0)o.payments.push({d:t,a:got,final:true});
     o.status='delivered';o.deliveredOn=t;save();render();detail(o.id);toast('Handed over');
+    track('order_handed_over',{days_in_shop:daysBetween(o.received,t),had_balance:bal>0,paid_in_full:got>=bal,was_notified:!!o.notifiedOn});
   }
   else if(act==='pay'){
     const got=askAmount(`Amount received (balance Rs ${bal})`,bal);if(!got)return;
-    o.payments.push({d:t,a:got});save();render();detail(o.id);toast(`Rs ${got} received`);
+    o.payments.push({d:t,a:got});save();render();detail(o.id);toast(`Rs ${got} received`);track('payment_added',{status:o.status,paid_in_full:got>=bal});
   }
   else if(act==='undo'){
     if(o.status==='delivered'){o.status='ready';delete o.deliveredOn;o.payments=o.payments.filter(p=>!p.final);}
     else{o.status='received';delete o.readyOn;delete o.notifiedOn;}
-    save();render();detail(o.id);
+    save();render();detail(o.id);track('status_undone',{to:o.status});
   }
-  else if(act==='del'){if(confirm(`Delete receipt #${o.id}?`)){db.orders=db.orders.filter(x=>x!==o);save();render();dlg.close();}}
+  else if(act==='del'){if(confirm(`Delete receipt #${o.id}?`)){db.orders=db.orders.filter(x=>x!==o);save();render();dlg.close();track('order_deleted',{status:o.status,sample:!!o.demo});}}
   else if(act==='edit')orderForm(o);
-  else if(act==='print')printSlip(o);
+  else if(act==='print'){printSlip(o);track('slip_printed');}
   // let the link open WhatsApp first; redraw a moment later so the tapped link isn't removed mid-navigation
-  else if(act==='notified'){o.notifiedOn=t;save();setTimeout(()=>{render();if(dlg.open&&curId===o.id)detail(o.id)},400);}
-  else if(act==='badPhone')toast(o.phone?`“${o.phone}” is not a valid WhatsApp number — tap Edit to fix`:'No phone number — tap Edit to add one');
+  else if(act==='notified'){track('whatsapp_notify_sent',{again:!!o.notifiedOn});o.notifiedOn=t;save();setTimeout(()=>{render();if(dlg.open&&curId===o.id)detail(o.id)},400);}
+  else if(act==='receiptSent')track('whatsapp_receipt_sent',{status:o.status});
+  else if(act==='badPhone'){track('whatsapp_bad_phone',{has_phone:!!o.phone});}
+  if(act==='badPhone')toast(o.phone?`“${o.phone}” is not a valid WhatsApp number — tap Edit to fix`:'No phone number — tap Edit to add one');
 }
 function receiptText(o){
   const total=totalOf(o),paid=paidOf(o);
@@ -488,6 +491,9 @@ function orderForm(o){
     if(isNew&&id>=expect)db.settings.nextNo=id+1;
     dirty=false;
     save();render();detail(id);toast(isNew?`Saved #${id}`:'Updated');
+    track(isNew?'order_created':'order_edited',{lines:items.length,pieces:items.reduce((n,i)=>n+i.qty,0),
+      services:[...new Set(items.map(i=>i.svc))],custom_item:items.some(i=>!P.some(p=>p.name===i.type)),
+      has_phone:!!rec.phone,has_tag:!!rec.mark,advance:adv>0,suggested_number:id===expect,returning_customer:!!rec.phone&&db.orders.some(x=>x!==rec&&localPhone(x.phone)===localPhone(rec.phone))});
   };
   if(isNew)setTimeout(()=>f.phone.focus(),50);
 }
@@ -524,33 +530,43 @@ function settings(){
     const names=list.filter(p=>p.name).map(p=>p.name.toLowerCase());
     if(new Set(names).size!==names.length){alert('Two items have the same name.');return;}
     Object.assign(s,{shopName:f.shopName.value.trim()||'Laundry',shopPhone:f.shopPhone.value.trim(),nextNo:Math.max(1,parseInt(f.nextNo.value)||s.nextNo),days:Math.max(0,parseInt(f.days.value)||0),priceList:list.filter(p=>p.name),pricesEdited:true});
-    dirty=false;save();render();dlg.close();toast('Saved');};
-  $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download=`laundry-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);};
-  $('#logout').onclick=()=>{if(confirm('Sign out on this device? Orders stay saved here.')){dlg.close();lock('Signed out.');}};
+    dirty=false;save();render();dlg.close();toast('Saved');track('settings_saved',{price_items:s.priceList.length});};
+  $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download=`laundry-backup-${today()}.json`;a.click();track('backup_exported',{orders:db.orders.length});setTimeout(()=>URL.revokeObjectURL(a.href),5000);};
+  $('#logout').onclick=()=>{if(confirm('Sign out on this device? Orders stay saved here.')){dlg.close();track('signed_out');lock('Signed out.');}};
   $('#impB').onclick=()=>$('#imp').click();
   $('#imp').onchange=async e=>{
     let d;try{d=migrate(JSON.parse(await e.target.files[0].text()));if(!Array.isArray(d.orders))throw 0;d.orders.forEach(o=>{totalOf(o);paidOf(o)})}
     catch(_){alert('Not a valid backup file.');return}finally{e.target.value=''}
     if(!confirm(`Replace current data with this backup (${d.orders.length} orders)?`))return;
     try{localStorage.setItem(KEY+'.before-restore',JSON.stringify(db))}catch(_){}   // undo safety net
-    db=d;save();render();dlg.close();toast('Restored');
+    db=d;save();render();dlg.close();toast('Restored');track('backup_restored',{orders:d.orders.length});
   };
   $('#wipe').onclick=()=>{
     const sample=db.orders.some(o=>o.demo);
     if(!confirm(sample?'Remove the sample orders? Your real orders stay.':'Erase ALL orders? Back up first!'))return;
-    db.orders=sample?db.orders.filter(o=>!o.demo):[];save();render();dlg.close();
+    db.orders=sample?db.orders.filter(o=>!o.demo):[];save();render();dlg.close();track(sample?'sample_orders_removed':'all_orders_erased');
   };
 }
 
 /* ---------- wiring ---------- */
 const q=$('#q');
-q.addEventListener('input',()=>{query=q.value.trim();render()});
+let searchTimer,searchOpened=false;
+q.addEventListener('input',()=>{
+  query=q.value.trim();render();
+  // one event per search once typing pauses; the search text itself is never sent
+  clearTimeout(searchTimer);if(!query)return;searchOpened=false;
+  searchTimer=setTimeout(()=>{const n=db.orders.filter(o=>matches(o,query)).length;
+    track('search_used',{kind:digits(query)&&digits(query)===query.replace(/[\s\-+#]/g,'')?(digits(query).length>=7?'phone':'receipt'):'name',
+      results:n===0?'0':n===1?'1':n<=5?'2-5':'6+'});},1200);
+});
 q.addEventListener('keydown',e=>{if(e.key==='Enter'){const o=byId(digits(q.value));if(o)detail(o.id);}});
 $('#qx').onclick=e=>{e.preventDefault();q.value='';query='';render();q.focus()};
 $('#allBtn').onclick=()=>{filter='all';q.value='';query='';render()};
 document.addEventListener('click',e=>{
-  const f=e.target.closest('.stat');if(f){filter=f.dataset.f;q.value='';query='';render();return;}
-  const r=e.target.closest('.row');if(r)detail(r.dataset.id);
+  const f=e.target.closest('.stat');if(f){filter=f.dataset.f;q.value='';query='';render();track('filter_tapped',{filter});return;}
+  const r=e.target.closest('.row');if(r){
+    if(query&&!searchOpened){searchOpened=true;track('search_result_opened',{position:[...$('#list').children].indexOf(r)+1});}
+    detail(r.dataset.id);}
 });
 document.addEventListener('keydown',e=>{if(e.key==='/'&&!dlg.open&&document.activeElement!==q){e.preventDefault();q.focus();}});
 $('#newBtn').onclick=()=>orderForm(null);
@@ -600,11 +616,11 @@ async function checkAccess(){
   let users;
   try{users=await fetchUsers();}catch(e){
     if(Date.now()-ss.ok<OFFLINE_DAYS*864e5)return unlock();
-    return lock('You have been offline too long. Connect to the internet and sign in.');
+    track('access_expired_offline');return lock('You have been offline too long. Connect to the internet and sign in.');
   }
   lastCheck=Date.now();
   const u=users.find(x=>x.u===ss.u);
-  if(!u||u.disabled||!same(u.hash,ss.h))return lock(u&&u.disabled?'This account has been disabled.':'Please sign in again.');
+  if(!u||u.disabled||!same(u.hash,ss.h)){track('access_revoked',{reason:!u?'removed':u.disabled?'disabled':'password_changed'});flush();return lock(u&&u.disabled?'This account has been disabled.':'Please sign in again.');}
   ss.ok=Date.now();setSession(ss);unlock();
 }
 $('#lf').onsubmit=async e=>{
@@ -618,18 +634,76 @@ $('#lf').onsubmit=async e=>{
     // hash even when the user doesn't exist, so timing doesn't reveal valid usernames
     const h=await pbkdf2(f.p.value,u?.salt||'00'.repeat(16),u?.iter||600000);
     if(u&&!u.disabled&&same(h,u.hash)){
-      fails=0;setSession({u:u.u,h:u.hash,ok:Date.now()});lastCheck=Date.now();
+      fails=0;setSession({u:u.u,h:u.hash,ok:Date.now()});lastCheck=Date.now();track('$identify',{$anon_distinct_id:'device-'+DEVICE});track('signed_in');  // links pre-login events to the shop
       if(u.shop&&(!db.settings.shopName||db.settings.shopName==='Laundry')){db.settings.shopName=u.shop;save();}
       f.p.value='';unlock();
     }else{
       fails++;if(fails>=5){waitUntil=Date.now()+30e3*(fails-4);}
+      track('sign_in_failed',{reason:!u?'unknown_user':u.disabled?'disabled':'wrong_password',attempt:fails});
       err.textContent=u&&u.disabled?'This account has been disabled.':'Wrong username or password.';
     }
-  }catch(_){err.textContent='Could not reach the server. Check the internet connection.';}
+  }catch(_){err.textContent='Could not reach the server. Check the internet connection.';track('sign_in_failed',{reason:'offline'});}
   btn.disabled=false;btn.textContent='Sign in';
 };
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();});
 setInterval(()=>{if(!document.hidden&&getSession()&&Date.now()-lastCheck>RECHECK_MS)checkAccess();},60e3);
+/* ---------- usage analytics (developer only) ----------
+   Sends what the shop DOES in the app to the developer's PostHog project: actions, counts, errors.
+   Never sent: customer names, phone numbers, search text, notes, amounts, receipt numbers.
+   Events queue on the phone and are sent when online, so nothing is lost while offline. */
+const PH_KEY='phc_niRtKQRr76kjFXDt8FcNRsji3G7Trcxu6Antym8QZsrF',PH_HOST='https://us.i.posthog.com';
+const APP_VERSION='2026-11-15',QKEY='dhulai.events',MAX_Q=1000;
+const DEVICE=(()=>{try{let d=localStorage.getItem('dhulai.device');if(!d){d=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);localStorage.setItem('dhulai.device',d)}return d}catch(e){return'unknown'}})();
+const SESSION_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const readQ=()=>{try{return JSON.parse(localStorage.getItem(QKEY))||[]}catch(e){return[]}};
+const writeQ=q=>{try{localStorage.setItem(QKEY,JSON.stringify(q.slice(-MAX_Q)))}catch(e){}};
+function track(event,props={}){
+  try{
+    const user=getSession()?.u;
+    const q=readQ();
+    q.push({event,timestamp:new Date().toISOString(),properties:{
+      distinct_id:user||'device-'+DEVICE,...props,
+      shop:user||null,device:DEVICE,session:SESSION_ID,app_version:APP_VERSION,
+      installed:standalone(),online:navigator.onLine,$lib:'laundry-app'}});
+    writeQ(q);
+    if(!flushTimer)flushTimer=setTimeout(()=>{flushTimer=null;flush()},3000);
+  }catch(e){}
+}
+let flushTimer=null,flushing=false;
+async function flush(){
+  const q=readQ();if(!q.length||flushing||navigator.onLine===false)return;
+  flushing=true;const batch=q.slice(0,100);
+  try{
+    // text/plain keeps this a "simple" request, so it also goes out while the app is closing
+    const r=await fetch(PH_HOST+'/batch/',{method:'POST',keepalive:true,headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({api_key:PH_KEY,batch})});
+    if(r.ok){const now=readQ();writeQ(now.slice(batch.length));if(now.length>batch.length)setTimeout(flush,500);}
+  }catch(e){}finally{flushing=false}
+}
+addEventListener('online',flush);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
+// app errors, so problems on the shop's phone show up for the developer
+let errCount=0;
+const trackError=(kind,msg,where)=>{if(++errCount<=20)track('app_error',{kind,message:String(msg||'').slice(0,200),where:String(where||'').slice(0,120)})};
+addEventListener('error',e=>trackError('error',e.message,(e.filename||'').split('/').pop()+':'+e.lineno+':'+e.colno));
+addEventListener('unhandledrejection',e=>trackError('promise',e.reason?.message||e.reason,''));
+// once a day: a snapshot of how much the app holds (counts only)
+function dailySummary(){
+  try{
+    const t=today();if(localStorage.getItem('dhulai.summaryDay')===t||!getSession())return;
+    localStorage.setItem('dhulai.summaryDay',t);
+    const os=db.orders.filter(o=>!o.demo);
+    track('daily_summary',{orders_total:os.length,sample_orders:db.orders.length-os.length,
+      pending:os.filter(o=>o.status!=='delivered').length,ready:os.filter(o=>o.status==='ready').length,late:os.filter(isLate).length,
+      created_yesterday:os.filter(o=>o.received===addDays(t,-1)).length,price_items:db.settings.priceList.length,
+      storage_kb:Math.round((localStorage.getItem(KEY)||'').length/1024)});
+  }catch(e){}
+}
+track('app_opened',{signed_in:!!getSession(),shortcut:new URLSearchParams(location.search).has('new')});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&getSession()){track('app_resumed');dailySummary();}});
+setTimeout(()=>{dailySummary();flush()},2000);
+
 checkAccess();
 // installable app + works offline
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))

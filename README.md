@@ -31,3 +31,10 @@ up to 30 days.
 
 This is an access gate for a static site, not server-side security: it keeps strangers and casual users out, but the
 page itself is public. Orders never leave the device, so bypassing the screen exposes no shop data.
+
+## Usage analytics (developer only)
+
+The app reports what the shop does (sign-ins, orders created / ready / handed over, searches and whether they found
+something, WhatsApp taps, backups, app errors, and a daily count summary) to the developer's PostHog project
+(US region). Events queue on the phone while offline and are sent when it reconnects. **No customer data is sent**:
+no names, phone numbers, search text, notes, amounts or receipt numbers. Events are grouped by the shop's username.
